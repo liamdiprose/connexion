@@ -202,8 +202,8 @@ class ObjectResolver(Resolver):
         """
         parts = operationId.split('.')
 
-        controller_name = parts[1]
-        method_name = parts[2]
+        controller_name = parts[2]
+        method_name = parts[3]
 
         controller = self.controllers[controller_name]
 
