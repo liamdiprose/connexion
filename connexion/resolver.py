@@ -153,7 +153,7 @@ class ObjectResolver(Resolver):
 
     def add_controller(self, controller):
         """
-        Register a controller instance to be resolved.Resolver
+        Register a controller instance to be resolved.
 
         :type controller Controller
         """
@@ -193,13 +193,17 @@ class ObjectResolver(Resolver):
 
     @staticmethod
     def method_from_operation(operation):
+        # FIXME: Format paths with multiple slashes
         return "{}_{}".format(operation.method.lower(), operation.path.strip('/'))
     
     def resolve_function_from_operation_id(self, operationId):
         """
         Resolve handler from the added controller instances.
         """
-        controller_name, method_name = operationId.split('.')
+        parts = operationId.split('.')
+
+        controller_name = parts[0]
+        method_name = parts[1]
 
         controller = self.controllers[controller_name]
 
