@@ -2,7 +2,8 @@ import connexion.apps
 import pytest
 from connexion.exceptions import ResolverError
 from connexion.operation import Operation
-from connexion.resolver import Resolver, RestyResolver
+from connexion.resolver import Resolver, RestyResolver, ObjectResolver
+from fakeapi.controller_classes import GreetingController
 
 PARAMETER_DEFINITIONS = {'myparam': {'in': 'path', 'type': 'integer'}}
 
@@ -235,3 +236,64 @@ def test_resty_resolve_with_default_module_name_will_resolve_resource_root_post_
                           parameter_definitions=PARAMETER_DEFINITIONS,
                           resolver=RestyResolver('fakeapi'))
     assert operation.operation_id == 'fakeapi.hello.post'
+
+def test_object_controller_resolve():
+
+    controller = GreetingController()
+
+    resolver = ObjectResolver()
+    resolver.add_controller(controller)
+
+    route_handler = resolver.resolve_function_from_operation_id('greeting.post_greeting')
+
+    assert type(route_handler) is not None
+    assert route_handler("Test")['greeting'] == "Hello Test"
+
+    operation = Operation(api=None,
+                          method='POST',
+                          path='/hello',
+                          path_parameters=[],
+                          operation={
+                              'x-swagger-router-controller': 'greeting',
+                              'operationId': 'post_greeting',
+                          },
+                          app_produces=['application/json'],
+                          app_consumes=['application/json'],
+                          app_security=[],
+                          security_definitions={},
+                          definitions={},
+                          parameter_definitions=PARAMETER_DEFINITIONS,
+                          resolver=resolver)
+    # 
+    # # TODO: Test resolver was hit
+    # # TODO: Test operation has right function
+
+    assert operation.operation_id == 'greeting.post_greeting'
+
+    #assert operation.__undecorated_function("Test")['data'] == "Hello Test"
+
+
+
+    # assert operation.function() is not None
+
+def test_object_controller_resolve_no_controller_operation():
+
+    resolver = ObjectResolver()
+    greetings = GreetingController()
+
+    resolver.add_controller(greetings)
+
+    operation = Operation(api=None,
+                          method='POST',
+                          path='/greeting',
+                          path_parameters=[],
+                          operation={},
+                          app_produces=['application/json'],
+                          app_consumes=['application/json'],
+                          app_security=[],
+                          security_definitions={},
+                          definitions={},
+                          parameter_definitions=PARAMETER_DEFINITIONS,
+                          resolver=resolver)
+    
+    assert operation.operation_id == "greeting.post_greeting"
