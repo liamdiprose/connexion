@@ -7,6 +7,20 @@ from connexion.exceptions import ResolverError
 
 logger = logging.getLogger('connexion.resolver')
 
+class Controller:
+
+    def get_method_for_operation(self, operation):
+        """
+        Return the method for the operation name.
+        """
+        try:
+            method = getattr(self, operation)
+        except AttributeError:
+            raise ResolverError("Controller {controller_type} has no operation '{method}'"
+                                    .format(controller_type=self.__class__.__name__, method=operation))
+        else:
+            return method
+
 
 class Resolution(object):
     def __init__(self, function, operation_id):
@@ -128,3 +142,66 @@ class RestyResolver(Resolver):
             return self.collection_endpoint_name if is_collection_endpoint else method.lower()
 
         return '{}.{}'.format(get_controller_name(), get_function_name())
+
+# TODO: Rename this 
+class ObjectResolver(Resolver):
+    """
+    Resolves the operationId using a collection of instanctated controllers
+    """
+    def __init__(self):
+        self.controllers = {}
+
+    def add_controller(self, controller):
+        """
+        Register a controller instance to be resolved.Resolver
+
+        :type controller Controller
+        """
+        self.controllers[controller.__class__.__controllername__] = controller
+    
+    def resolve_operation_id(self, operation):
+        """
+        Resolves the operationId using REST semantics unless explicitly configured in the spec
+
+        :type operation: connexion.operation.Operation
+        """
+
+        # if no explicit operation_id
+        # if no class, derive by how many are there
+        # if otherwise, use classname.methodname
+        # operationId = Resolver.resolve_operation_id(operation)
+
+        spec = operation.operation
+        operation_id = spec.get('operationId', '')
+        x_router_controller = spec.get('x-swagger-router-controller')
+
+        if x_router_controller:
+            controller_name = x_router_controller
+        else:
+            if len(self.controllers) == 1:
+                controller_name = next(iter(self.controllers.keys()))
+            else:
+                raise ResolverError("Could not determine which controller to use")
+
+        if operation_id:
+            method_name = operation_id
+        else:
+            method_name = ObjectResolver.method_from_operation(operation)
+        
+        # TODO: Split into own function
+        return "{}.{}".format(controller_name, method_name)
+
+    @staticmethod
+    def method_from_operation(operation):
+        return "{}_{}".format(operation.method.lower(), operation.path.strip('/'))
+    
+    def resolve_function_from_operation_id(self, operationId):
+        """
+        Resolve handler from the added controller instances.
+        """
+        controller_name, method_name = operationId.split('.')
+
+        controller = self.controllers[controller_name]
+
+        handler = controller.get_method_for_operation(method_name)
+        return handler
